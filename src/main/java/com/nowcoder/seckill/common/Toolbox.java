@@ -14,6 +14,11 @@ public class Toolbox implements ErrorCode {
 
     private static final String salt = "你对Lw中有哪些特别的回忆";
 
+    /**
+     * 对用户的密码进行加盐加密
+     * @param str
+     * @return 
+     */
     public static String md5(String str) {
         if (StringUtils.isEmpty(str)) {
             throw new BusinessException(PARAMETER_ERROR, "参数不合法！");
@@ -22,6 +27,12 @@ public class Toolbox implements ErrorCode {
         return DigestUtils.md5DigestAsHex((str + salt).getBytes());
     }
 
+    /**
+     * 格式化数据
+     * @param date
+     * @param pattern
+     * @return
+     */
     public static String format(Date date, String pattern) {
         return new SimpleDateFormat(pattern).format(date);
     }

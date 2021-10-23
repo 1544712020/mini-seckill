@@ -12,7 +12,7 @@ import java.util.Set;
 
 public class Toolbox implements ErrorCode {
 
-    private static final String salt = "你在牛客收获了哪些特别的回忆";
+    private static final String salt = "你对Lw中有哪些特别的回忆";
 
     public static String md5(String str) {
         if (StringUtils.isEmpty(str)) {

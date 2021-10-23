@@ -39,7 +39,7 @@ public class OrderServiceImpl implements OrderService, ErrorCode {
     /**
      * 格式：日期 + 流水
      * 示例：20210123000000000001
-     *
+     * 事务传播性为REQUIRES_NEW：当创建订单事务回滚时，生成订单号的事务不会受到影响
      * @return
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)

@@ -26,6 +26,10 @@ public class UserController implements ErrorCode {
 
     private Logger logger = LoggerFactory.getLogger(UserController.class);
 
+    /**
+     * 生成验证码
+     * @return
+     */
     private String generateOTP() {
         StringBuilder sb = new StringBuilder();
         Random random = new Random();
@@ -35,6 +39,12 @@ public class UserController implements ErrorCode {
         return sb.toString();
     }
 
+    /**
+     * 用户注册时获取验证码
+     * @param phone
+     * @param session
+     * @return
+     */
     @RequestMapping(path = "/otp/{phone}", method = RequestMethod.GET)
     @ResponseBody
     public ResponseModel getOTP(@PathVariable("phone") String phone, HttpSession session) {
@@ -87,7 +97,6 @@ public class UserController implements ErrorCode {
     @ResponseBody
     public ResponseModel logout(HttpSession session) {
         session.invalidate();
-
         return new ResponseModel();
     }
 

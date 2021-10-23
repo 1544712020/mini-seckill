@@ -33,6 +33,7 @@ public class ItemServiceImpl implements ItemService, ErrorCode {
 
     public List<Item> findItemsOnPromotion() {
         List<Item> items = itemMapper.selectOnPromotion();
+        // 使用stream流将在活动中的商品添加上库存以及活动
         return items.stream().map(item -> {
             // 查库存
             ItemStock stock = itemStockMapper.selectByItemId(item.getId());

@@ -14,7 +14,7 @@
 
         <sqlMapGenerator targetPackage="mappers" targetProject="src/main/resources"/>
 
-        <javaClientGenerator type="XMLMAPPER" targetPackage="com.nowcoder.seckill.dao" targetProject="src/main/java"/>
+        <javaClientGenerator type="MAPPER" targetPackage="com.nowcoder.seckill.dao" targetProject="src/main/java"/>
 
         <!--
         <table tableName="item" domainObjectName="Item"

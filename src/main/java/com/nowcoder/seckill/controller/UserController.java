@@ -58,10 +58,16 @@ public class UserController implements ErrorCode {
         session.setAttribute(phone, otp);
         // 发送OTP
         logger.info("[mini-sec-kill] 尊敬的{}您好, 您的注册验证码是{}, 请注意查收!", phone, otp);
-
         return new ResponseModel();
     }
 
+    /**
+     * 用户注册接口
+     * @param otp
+     * @param user
+     * @param session
+     * @return
+     */
     @RequestMapping(path = "/register", method = RequestMethod.POST)
     @ResponseBody
     public ResponseModel register(String otp, User user, HttpSession session) {
@@ -72,16 +78,20 @@ public class UserController implements ErrorCode {
                 || !StringUtils.equals(otp, realOTP)) {
             throw new BusinessException(PARAMETER_ERROR, "验证码不正确！");
         }
-
         // 加密处理
         user.setPassword(Toolbox.md5(user.getPassword()));
-
         // 注册用户
         userService.register(user);
-
         return new ResponseModel();
     }
 
+    /**
+     * 用户登录接口
+     * @param phone
+     * @param password
+     * @param session
+     * @return
+     */
     @RequestMapping(path = "/login", method = RequestMethod.POST)
     @ResponseBody
     public ResponseModel login(String phone, String password, HttpSession session) {
@@ -89,14 +99,17 @@ public class UserController implements ErrorCode {
                 || StringUtils.isEmpty(password)) {
             throw new BusinessException(PARAMETER_ERROR, "参数不合法！");
         }
-
         String md5pwd = Toolbox.md5(password);
         User user = userService.login(phone, md5pwd);
         session.setAttribute("loginUser", user);
-
         return new ResponseModel();
     }
 
+    /**
+     * 用户注销接口
+     * @param session
+     * @return
+     */
     @RequestMapping(path = "/logout", method = RequestMethod.GET)
     @ResponseBody
     public ResponseModel logout(HttpSession session) {
@@ -104,6 +117,11 @@ public class UserController implements ErrorCode {
         return new ResponseModel();
     }
 
+    /**
+     * 获取登录用户信息
+     * @param session
+     * @return
+     */
     @RequestMapping(path = "/status", method = RequestMethod.GET)
     @ResponseBody
     public ResponseModel getUser(HttpSession session) {

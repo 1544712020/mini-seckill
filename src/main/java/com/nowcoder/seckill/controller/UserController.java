@@ -57,7 +57,7 @@ public class UserController implements ErrorCode {
         // 绑定OTP
         session.setAttribute(phone, otp);
         // 发送OTP
-        logger.info("[Lw中] 尊敬的{}您好, 您的注册验证码是{}, 请注意查收!", phone, otp);
+        logger.info("[mini-sec-kill] 尊敬的{}您好, 您的注册验证码是{}, 请注意查收!", phone, otp);
 
         return new ResponseModel();
     }

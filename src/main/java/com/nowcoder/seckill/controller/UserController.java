@@ -31,23 +31,10 @@ public class UserController implements ErrorCode {
     private RedisTemplate redisTemplate;
 
     /**
-     * 生成验证码
-     * @return
-     */
-    private String generateOTP() {
-        StringBuilder sb = new StringBuilder();
-        Random random = new Random();
-        for (int i = 0; i < 4; i++) {
-            sb.append(random.nextInt(10));
-        }
-        return sb.toString();
-    }
-
-    /**
      * 用户注册时获取验证码
      * @param phone
      * @param session
-     * @return
+     * @return ResponseModel
      */
     @RequestMapping(path = "/otp/{phone}", method = RequestMethod.GET)
     @ResponseBody
@@ -66,16 +53,14 @@ public class UserController implements ErrorCode {
      * @param otp
      * @param user
      * @param session
-     * @return
+     * @return ResponseModel
      */
     @RequestMapping(path = "/register", method = RequestMethod.POST)
     @ResponseBody
     public ResponseModel register(String otp, User user, HttpSession session) {
         // 验证OTP
         String realOTP = (String) session.getAttribute(user.getPhone());
-        if (StringUtils.isEmpty(otp)
-                || StringUtils.isEmpty(realOTP)
-                || !StringUtils.equals(otp, realOTP)) {
+        if (StringUtils.isEmpty(otp) || StringUtils.isEmpty(realOTP) || !StringUtils.equals(otp, realOTP)) {
             throw new BusinessException(PARAMETER_ERROR, "验证码不正确！");
         }
         // 加密处理
@@ -90,13 +75,12 @@ public class UserController implements ErrorCode {
      * @param phone
      * @param password
      * @param session
-     * @return
+     * @return ResponseModel
      */
     @RequestMapping(path = "/login", method = RequestMethod.POST)
     @ResponseBody
     public ResponseModel login(String phone, String password, HttpSession session) {
-        if (StringUtils.isEmpty(phone)
-                || StringUtils.isEmpty(password)) {
+        if (StringUtils.isEmpty(phone) || StringUtils.isEmpty(password)) {
             throw new BusinessException(PARAMETER_ERROR, "参数不合法！");
         }
         String md5pwd = Toolbox.md5(password);
@@ -108,7 +92,7 @@ public class UserController implements ErrorCode {
     /**
      * 用户注销接口
      * @param session
-     * @return
+     * @return ResponseModel
      */
     @RequestMapping(path = "/logout", method = RequestMethod.GET)
     @ResponseBody
@@ -120,13 +104,26 @@ public class UserController implements ErrorCode {
     /**
      * 获取登录用户信息
      * @param session
-     * @return
+     * @return ResponseModel
      */
     @RequestMapping(path = "/status", method = RequestMethod.GET)
     @ResponseBody
     public ResponseModel getUser(HttpSession session) {
         User user = (User) session.getAttribute("loginUser");
         return new ResponseModel(user);
+    }
+
+    /**
+     * 生成验证码
+     * @return 验证码
+     */
+    private String generateOTP() {
+        StringBuilder sb = new StringBuilder();
+        Random random = new Random();
+        for (int i = 0; i < 4; i++) {
+            sb.append(random.nextInt(10));
+        }
+        return sb.toString();
     }
 
 }

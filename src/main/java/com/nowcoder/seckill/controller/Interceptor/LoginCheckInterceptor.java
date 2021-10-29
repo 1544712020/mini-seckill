@@ -18,8 +18,7 @@ import java.util.Map;
 public class LoginCheckInterceptor implements HandlerInterceptor, ErrorCode {
 
     @Override
-    public boolean preHandle(HttpServletRequest request,
-                             HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         HttpSession session = request.getSession();
         User user = (User) session.getAttribute("loginUser");
         if (user == null) {

@@ -16,7 +16,7 @@ import javax.servlet.http.HttpSession;
 
 @Controller
 @RequestMapping("/order")
-@CrossOrigin(origins = "${nowcoder.web.path}", allowedHeaders = "*", allowCredentials = "true")
+@CrossOrigin(origins = "${lwz.web.path}", allowedHeaders = "*", allowCredentials = "true")
 public class OrderController implements ErrorCode {
 
     @Autowired

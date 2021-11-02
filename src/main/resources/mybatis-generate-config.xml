@@ -8,13 +8,13 @@
                         connectionURL="jdbc:mysql://106.52.41.171:3306/seckill?characterEncoding=utf-8&amp;useSSL=false&amp;serverTimezone=Hongkong"
                         userId="root" password="123456"/>
 
-        <javaModelGenerator targetPackage="com.nowcoder.seckill.entity" targetProject="src/main/java">
+        <javaModelGenerator targetPackage="com.lwz.seckill.entity" targetProject="src/main/java">
             <property name="trimStrings" value="true" />
         </javaModelGenerator>
 
         <sqlMapGenerator targetPackage="mappers" targetProject="src/main/resources"/>
 
-        <javaClientGenerator type="MAPPER" targetPackage="com.nowcoder.seckill.dao" targetProject="src/main/java"/>
+        <javaClientGenerator type="MAPPER" targetPackage="com.lwz.seckill.dao" targetProject="src/main/java"/>
 
         <!--
         <table tableName="item" domainObjectName="Item"

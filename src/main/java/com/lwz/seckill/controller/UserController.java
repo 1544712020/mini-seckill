@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 @Controller
 @RequestMapping("/user")
-@CrossOrigin(origins = "${nowcoder.web.path}", allowedHeaders = "*", allowCredentials = "true")
+@CrossOrigin(origins = "${lwz.web.path}", allowedHeaders = "*", allowCredentials = "true")
 public class UserController implements ErrorCode {
 
     private Logger logger = LoggerFactory.getLogger(UserController.class);

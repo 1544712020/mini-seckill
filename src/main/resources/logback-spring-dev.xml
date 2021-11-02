@@ -80,8 +80,8 @@
         </filter>
     </appender>
 
-    <logger name="com.nowcoder.seckill" level="debug"/>
-    <logger name="com.nowcoder.seckill.dao" level="debug"/>
+    <logger name="com.lwz.seckill" level="debug"/>
+    <logger name="com.lwz.seckill.dao" level="debug"/>
 
     <root level="info">
         <appender-ref ref="CONSOLE"/>

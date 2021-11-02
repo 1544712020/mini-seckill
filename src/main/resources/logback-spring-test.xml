@@ -80,7 +80,7 @@
         </filter>
     </appender>
 
-    <logger name="com.nowcoder.seckill" level="info"/>
+    <logger name="com.lwz.seckill" level="info"/>
 
     <root level="info">
         <appender-ref ref="FILE_INFO"/>

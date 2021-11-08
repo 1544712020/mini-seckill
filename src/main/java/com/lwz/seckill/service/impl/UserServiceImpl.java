@@ -7,21 +7,30 @@ import com.lwz.seckill.dao.UserMapper;
 import com.lwz.seckill.entity.User;
 import com.lwz.seckill.service.UserService;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserServiceImpl implements UserService, ErrorCode {
+
+    private Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
 
     @Autowired
     private UserMapper userMapper;
 
     @Autowired
     private ObjectValidator validator;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     @Transactional
     public void register(User user) {
@@ -57,6 +66,29 @@ public class UserServiceImpl implements UserService, ErrorCode {
 
     public User findUserById(int id) {
         return userMapper.selectByPrimaryKey(id);
+    }
+
+    @Override
+    public User findUserByCache(int id) {
+        if (id <= 0) {
+            return null;
+        }
+        User user = null;
+        String key = "user:" + id;
+        // 查询redis
+        user = (User) redisTemplate.opsForValue().get(key);
+        if (user != null) {
+            logger.debug("缓存命中 [" + user + "]");
+            return user;
+        }
+        // 如果缓存没命中就查询数据库
+        user = this.findUserById(id);
+        if (user != null) {
+            logger.debug("同步缓存 [" + user + "]");
+            redisTemplate.opsForValue().set(key, user, 30, TimeUnit.MINUTES);
+            return user;
+        }
+        return null;
     }
 
 }

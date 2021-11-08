@@ -59,7 +59,6 @@ public class OrderController implements ErrorCode {
     @RequestMapping(path = "/captcha", method = RequestMethod.GET)
     public void getCaptcha(String token, HttpServletResponse response) {
         SpecCaptcha specCaptcha = new SpecCaptcha(130, 48, 4);
-
         if (token != null) {
             User user = (User) redisTemplate.opsForValue().get(token);
             if (user != null) {
@@ -67,7 +66,6 @@ public class OrderController implements ErrorCode {
                 redisTemplate.opsForValue().set(key, specCaptcha.text(), 1, TimeUnit.MINUTES);
             }
         }
-
         response.setContentType("image/png");
         try {
             OutputStream os = response.getOutputStream();
@@ -135,7 +133,7 @@ public class OrderController implements ErrorCode {
         Future future = taskExecutor.submit(new Callable() {
             @Override
             public Object call() throws Exception {
-//              orderService.createOrder(user.getId(), itemId, amount, promotionId);
+                // orderService.createOrder(user.getId(), itemId, amount, promotionId);
                 // 异步创建订单
                 orderService.createOrderAsync(user.getId(), itemId, amount, promotionId);
                 return null;

@@ -10,4 +10,6 @@ public interface UserService {
 
     User findUserById(int id);
 
+    User findUserByCache(int id);
+
 }

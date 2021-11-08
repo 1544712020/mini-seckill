@@ -47,7 +47,7 @@ public class OrderController implements ErrorCode {
     @Autowired
     private RedisTemplate redisTemplate;
 
-    // 线程池任务执行器
+    // 线程池任务执行器：复用线程以增加服务器缓冲能力（Spring提供的线程池封装）
     @Autowired
     private ThreadPoolTaskExecutor taskExecutor;
 
@@ -114,6 +114,7 @@ public class OrderController implements ErrorCode {
 //            throw new BusinessException(OUT_OF_LIMIT, "服务器繁忙，请稍后再试！");
 //        }
         // 限制单机流量（限制单机TPS）
+        // rateLimiter内持有一定数量的令牌，若一秒钟以内没有抢到令牌就不执行
         if (!rateLimiter.tryAcquire(1, TimeUnit.MINUTES)) {
             throw new BusinessException(OUT_OF_LIMIT, "服务器繁忙，请稍后重试！");
         }
@@ -129,7 +130,7 @@ public class OrderController implements ErrorCode {
             }
         }
 
-        // 加入对列等待（ThreadPool增加缓冲能力）
+        // 加入线程池对列等待（ThreadPool增加缓冲能力）
         Future future = taskExecutor.submit(new Callable() {
             @Override
             public Object call() throws Exception {

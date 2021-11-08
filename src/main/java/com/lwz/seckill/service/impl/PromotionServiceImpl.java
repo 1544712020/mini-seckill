@@ -26,6 +26,13 @@ public class PromotionServiceImpl implements PromotionService, ErrorCode {
     @Autowired
     private ItemService itemService;
 
+    /**
+     * 用于用户请求令牌
+     * @param userId
+     * @param itemId
+     * @param promotionId
+     * @return
+     */
     @Override
     public String generateToken(int userId, int itemId, int promotionId) {
         if (userId < 0 || itemId < 0 || promotionId < 0) {

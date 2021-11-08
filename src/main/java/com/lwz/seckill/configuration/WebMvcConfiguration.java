@@ -14,7 +14,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(loginCheckInterceptor).addPathPatterns("/order/create");
+        registry.addInterceptor(loginCheckInterceptor).addPathPatterns("/order/captcha", "/order/token", "/order/create");
     }
 
 }

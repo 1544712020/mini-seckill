@@ -1,38 +1,153 @@
 package com.lwz.seckill.controller;
 
+import com.google.common.util.concurrent.RateLimiter;
+import com.lwz.seckill.common.BusinessException;
 import com.lwz.seckill.common.ResponseModel;
 import com.lwz.seckill.common.ErrorCode;
 import com.lwz.seckill.entity.User;
 import com.lwz.seckill.service.OrderService;
+import com.lwz.seckill.service.PromotionService;
+import com.wf.captcha.SpecCaptcha;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 @Controller
 @RequestMapping("/order")
 @CrossOrigin(origins = "${lwz.web.path}", allowedHeaders = "*", allowCredentials = "true")
 public class OrderController implements ErrorCode {
 
+    private Logger logger = LoggerFactory.getLogger(OrderController.class);
+
+    // 限流器：最多每秒处理1000个请求
+    private RateLimiter rateLimiter = RateLimiter.create(1000);
+
     @Autowired
     private OrderService orderService;
+
+    @Autowired
+    private PromotionService promotionService;
+
     @Autowired
     private RedisTemplate redisTemplate;
 
+    // 线程池任务执行器
+    @Autowired
+    private ThreadPoolTaskExecutor taskExecutor;
+
+    /**
+     * 获取生成验证码方法
+     * @param token
+     * @param response
+     */
+    @RequestMapping(path = "/captcha", method = RequestMethod.GET)
+    public void getCaptcha(String token, HttpServletResponse response) {
+        SpecCaptcha specCaptcha = new SpecCaptcha(130, 48, 4);
+
+        if (token != null) {
+            User user = (User) redisTemplate.opsForValue().get(token);
+            if (user != null) {
+                String key = "captcha:" + user.getId();
+                redisTemplate.opsForValue().set(key, specCaptcha.text(), 1, TimeUnit.MINUTES);
+            }
+        }
+
+        response.setContentType("image/png");
+        try {
+            OutputStream os = response.getOutputStream();
+            specCaptcha.out(os);
+        } catch (IOException e) {
+            logger.error("发送验证码失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取验证码成功，则允许请求令牌
+     * @param itemId
+     * @param promotionId
+     * @param token
+     * @param captcha
+     * @return
+     */
+    @RequestMapping(path = "/token", method = RequestMethod.POST)
+    @ResponseBody
+    public ResponseModel generateToken(int itemId, int promotionId, String token, String captcha) {
+        User user = (User) redisTemplate.opsForValue().get(token);
+
+        if (StringUtils.isEmpty(captcha)) {
+            throw new BusinessException(PARAMETER_ERROR, "请输入正确的验证码！");
+        }
+
+        String key = "captcha:" + user.getId();
+        String realCaptcha = (String) redisTemplate.opsForValue().get(key);
+        if (!captcha.equalsIgnoreCase(realCaptcha)) {
+            throw new BusinessException(PARAMETER_ERROR, "请输入正确的验证码！");
+        }
+
+        String promotionToken = promotionService.generateToken(user.getId(), itemId, promotionId);
+        if (StringUtils.isEmpty(promotionToken)) {
+            throw new BusinessException(CREATE_ORDER_FAILURE, "下单失败！");
+        }
+        return new ResponseModel(promotionToken);
+    }
+
     @RequestMapping(path = "/create", method = RequestMethod.POST)
     @ResponseBody
-    public ResponseModel create(/*HttpSession session, */int itemId, int amount, Integer promotionId, String token) {
-        // 从session中获取用户信息
-        // User user = (User) session.getAttribute("loginUser");
+    public ResponseModel create(/*HttpSession session, */
+            int itemId, int amount, Integer promotionId, String promotionToken, String token) {
+//        User user = (User) session.getAttribute("loginUser");
+//        if (!rateLimiter.tryAcquire()) {
+//            throw new BusinessException(OUT_OF_LIMIT, "服务器繁忙，请稍后再试！");
+//        }
+        // 限制单机流量（限制单机TPS）
+        if (!rateLimiter.tryAcquire(1, TimeUnit.MINUTES)) {
+            throw new BusinessException(OUT_OF_LIMIT, "服务器繁忙，请稍后重试！");
+        }
 
-        // 从redis中获取用户信息
         User user = (User) redisTemplate.opsForValue().get(token);
-        orderService.createOrder(user.getId(), itemId, amount, promotionId);
+        logger.debug("登录用户 [" + token + ": " + user + "]");
+
+        if (promotionId != null) {
+            String key = "promotion:token:" + user.getId() + ":" + itemId + ":" + promotionId;
+            String realPromotionToken = (String) redisTemplate.opsForValue().get(key);
+            if (StringUtils.isEmpty(promotionToken) || !promotionToken.equals(realPromotionToken)) {
+                throw new BusinessException(CREATE_ORDER_FAILURE, "下单失败！");
+            }
+        }
+
+        // 加入对列等待（ThreadPool增加缓冲能力）
+        Future future = taskExecutor.submit(new Callable() {
+            @Override
+            public Object call() throws Exception {
+//              orderService.createOrder(user.getId(), itemId, amount, promotionId);
+                // 异步创建订单
+                orderService.createOrderAsync(user.getId(), itemId, amount, promotionId);
+                return null;
+            }
+        });
+
+        try {
+            future.get();
+        } catch (Exception e) {
+            throw new BusinessException(UNDEFINED_ERROR, "下单失败！");
+        }
+
         return new ResponseModel();
     }
 

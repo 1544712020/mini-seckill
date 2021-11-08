@@ -1,18 +1,27 @@
 package com.lwz.seckill.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.lwz.seckill.common.BusinessException;
 import com.lwz.seckill.common.ErrorCode;
 import com.lwz.seckill.common.Toolbox;
 import com.lwz.seckill.dao.OrderMapper;
 import com.lwz.seckill.dao.SerialNumberMapper;
-import com.lwz.seckill.entity.Item;
-import com.lwz.seckill.entity.Order;
-import com.lwz.seckill.entity.SerialNumber;
-import com.lwz.seckill.entity.User;
+import com.lwz.seckill.entity.*;
 import com.lwz.seckill.service.ItemService;
 import com.lwz.seckill.service.UserService;
 import com.lwz.seckill.service.OrderService;
+import org.apache.rocketmq.client.producer.LocalTransactionState;
+import org.apache.rocketmq.client.producer.SendCallback;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.TransactionSendResult;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessagingException;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +33,19 @@ import java.util.Date;
 @Service
 public class OrderServiceImpl implements OrderService, ErrorCode {
 
+    Logger logger = LoggerFactory.getLogger(OrderServiceImpl.class);
+
     @Autowired
     private OrderMapper orderMapper;
 
     @Autowired
     private SerialNumberMapper serialNumberMapper;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
+
+    @Autowired
+    private RocketMQTemplate rocketMQTemplate;
 
     @Autowired
     private UserService userService;
@@ -65,7 +82,7 @@ public class OrderServiceImpl implements OrderService, ErrorCode {
     }
 
     @Transactional
-    public Order createOrder(int userId, int itemId, int amount, Integer promotionId) {
+    public Order createOrder(int userId, int itemId, int amount, Integer promotionId, String itemStockLogId) {
         // 校验参数
         if (amount < 1 || (promotionId != null && promotionId.intValue() <= 0)) {
             throw new BusinessException(PARAMETER_ERROR, "指定的参数不合法！");
@@ -73,10 +90,10 @@ public class OrderServiceImpl implements OrderService, ErrorCode {
 
         // 校验用户
         // User user = userService.findUserById(userId);
-        User user = userService.findUserByCache(userId);
-        if (user == null) {
-            throw new BusinessException(PARAMETER_ERROR, "指定的用户不存在！");
-        }
+//        User user = userService.findUserByCache(userId);
+//        if (user == null) {
+//            throw new BusinessException(PARAMETER_ERROR, "指定的用户不存在！");
+//        }
 
         // 校验商品
         Item item = itemService.findItemById(itemId);
@@ -85,24 +102,28 @@ public class OrderServiceImpl implements OrderService, ErrorCode {
         }
 
         // 校验库存
-        int stock = item.getItemStock().getStock();
-        if (amount > stock) {
-            throw new BusinessException(STOCK_NOT_ENOUGH, "库存不足！");
-        }
+//        int stock = item.getItemStock().getStock();
+//        if (amount > stock) {
+//            throw new BusinessException(STOCK_NOT_ENOUGH, "库存不足！");
+//        }
 
         // 校验活动
-        if (promotionId != null) {
-            if (item.getPromotion() == null) {
-                throw new BusinessException(PARAMETER_ERROR, "指定的商品无活动！");
-            } else if (!item.getPromotion().getId().equals(promotionId)) {
-                throw new BusinessException(PARAMETER_ERROR, "指定的活动不存在！");
-            } else if (item.getPromotion().getStatus() == 1) {
-                throw new BusinessException(PARAMETER_ERROR, "指定的活动未开始！");
-            }
-        }
+//        if (promotionId != null) {
+//            if (item.getPromotion() == null) {
+//                throw new BusinessException(PARAMETER_ERROR, "指定的商品无活动！");
+//            } else if (!item.getPromotion().getId().equals(promotionId)) {
+//                throw new BusinessException(PARAMETER_ERROR, "指定的活动不存在！");
+//            } else if (item.getPromotion().getStatus() == 1) {
+//                throw new BusinessException(PARAMETER_ERROR, "指定的活动未开始！");
+//            }
+//        }
 
         // 扣减库存
-        boolean successful = itemService.decreaseStock(itemId, amount);
+        // 增加行锁：前提是商品主键字段上必须有索引
+        // 缓存库存：异步同步数据库并保证最终一致性
+        // boolean successful = itemService.decreaseStock(itemId, amount);
+        boolean successful = itemService.decreaseStockInCache(itemId, amount);
+        logger.debug("预扣减库存完成 [" + successful + "]");
         if (!successful) {
             throw new BusinessException(STOCK_NOT_ENOUGH, "库存不足！");
         }
@@ -118,11 +139,76 @@ public class OrderServiceImpl implements OrderService, ErrorCode {
         order.setOrderTotal(order.getOrderPrice().multiply(new BigDecimal(amount)));
         order.setOrderTime(new Timestamp(System.currentTimeMillis()));
         orderMapper.insert(order);
+        logger.debug("生成订单完成 [" + order.getId() + "]");
 
         // 更新销量
-        itemService.increaseSales(itemId, amount);
+        // itemService.increaseSales(itemId, amount);
+
+        // 更新销量(异步处理)
+        // itemService.increaseSales(itemId, amount);
+        // logger.debug("更新销量完成 [" + itemId + "]");
+        JSONObject body = new JSONObject();
+        body.put("itemId", itemId);
+        body.put("amount", amount);
+        Message msg = MessageBuilder.withPayload(body.toString()).build();
+        rocketMQTemplate.asyncSend("seckill:increase_sales", msg, new SendCallback() {
+
+            @Override
+            public void onSuccess(SendResult sendResult) {
+                logger.debug("投递增加商品销量消息成功");
+            }
+
+            @Override
+            public void onException(Throwable e) {
+                logger.error("投递增加商品销量消息失败", e);
+            }
+        }, 60 * 1000);
+
+        // 更新库存流水状态
+        itemService.updateItemStockLogStatus(itemStockLogId, 1);
+        logger.debug("更新流水完成 [" + itemStockLogId + "]");
 
         return order;
+    }
+
+    @Override
+    public void createOrderAsync(int userId, int itemId, int amount, Integer promotionId) {
+        // 售罄标识
+        if (redisTemplate.hasKey("item:stock:over:" + itemId)) {
+            throw new BusinessException(STOCK_NOT_ENOUGH, "已经售罄！");
+        }
+
+        // 生成库存流水
+        ItemStockLog itemStockLog = itemService.createItemStockLog(itemId, amount);
+        logger.debug("生成库存流水完成 [" + itemStockLog.getId() + "]");
+
+        // 消息体
+        JSONObject body = new JSONObject();
+        body.put("itemId", itemId);
+        body.put("amount", amount);
+        body.put("itemStockLogId", itemStockLog.getId());
+
+        // 本地事务参数
+        JSONObject arg = new JSONObject();
+        arg.put("userId", userId);
+        arg.put("itemId", itemId);
+        arg.put("amount", amount);
+        arg.put("promotionId", promotionId);
+        arg.put("itemStockLogId", itemStockLog.getId());
+
+        String dest = "seckill:decrease_stock";
+        Message msg = MessageBuilder.withPayload(body.toString()).build();
+        try {
+            logger.debug("尝试投递扣减库存消息 [" + body.toString() + "]");
+            TransactionSendResult sendResult = rocketMQTemplate.sendMessageInTransaction(dest, msg, arg);
+            if (sendResult.getLocalTransactionState() == LocalTransactionState.UNKNOW) {
+                throw new BusinessException(UNDEFINED_ERROR, "创建订单失败！");
+            } else if (sendResult.getLocalTransactionState() == LocalTransactionState.ROLLBACK_MESSAGE) {
+                throw new BusinessException(CREATE_ORDER_FAILURE, "创建订单失败！");
+            }
+        } catch (MessagingException e) {
+            throw new BusinessException(CREATE_ORDER_FAILURE, "创建订单失败！");
+        }
     }
 
 }

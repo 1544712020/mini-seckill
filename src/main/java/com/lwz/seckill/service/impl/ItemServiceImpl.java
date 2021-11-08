@@ -6,12 +6,15 @@ import com.lwz.seckill.common.BusinessException;
 import com.lwz.seckill.common.ErrorCode;
 import com.lwz.seckill.component.ObjectValidator;
 import com.lwz.seckill.dao.ItemMapper;
+import com.lwz.seckill.dao.ItemStockLogMapper;
 import com.lwz.seckill.dao.ItemStockMapper;
 import com.lwz.seckill.dao.PromotionMapper;
 import com.lwz.seckill.entity.Item;
 import com.lwz.seckill.entity.ItemStock;
+import com.lwz.seckill.entity.ItemStockLog;
 import com.lwz.seckill.entity.Promotion;
 import com.lwz.seckill.service.ItemService;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -37,6 +41,9 @@ public class ItemServiceImpl implements ItemService, ErrorCode {
 
     @Autowired
     private PromotionMapper promotionMapper;
+
+    @Autowired
+    private ItemStockLogMapper itemStockLogMapper;
 
     @Autowired
     private ObjectValidator validator;
@@ -157,6 +164,29 @@ public class ItemServiceImpl implements ItemService, ErrorCode {
     }
 
     /**
+     * 用于生成订单流水信息
+     * @param itemId
+     * @param amount
+     * @return
+     */
+    @Override
+    public ItemStockLog createItemStockLog(int itemId, int amount) {
+        if (itemId <= 0 || amount <= 0) {
+            throw new BusinessException(PARAMETER_ERROR, "参数不合法！");
+        }
+
+        ItemStockLog log = new ItemStockLog();
+        log.setId(UUID.randomUUID().toString().replace("-", ""));
+        log.setItemId(itemId);
+        log.setAmount(amount);
+        log.setStatus(0);
+
+        itemStockLogMapper.insert(log);
+
+        return log;
+    }
+
+    /**
      * 从缓存中添加商品库存
      * @param itemId
      * @param amount
@@ -170,6 +200,22 @@ public class ItemServiceImpl implements ItemService, ErrorCode {
         String key = "item:stock:" + itemId;
         redisTemplate.opsForValue().increment(key, amount);
         return true;
+    }
+
+    @Override
+    public void updateItemStockLogStatus(String id, int status) {
+        ItemStockLog log = itemStockLogMapper.selectByPrimaryKey(id);
+        log.setStatus(status);
+        itemStockLogMapper.updateByPrimaryKey(log);
+    }
+
+    @Override
+    public ItemStockLog findItemStorkLogById(String id) {
+        if (StringUtils.isEmpty(id)) {
+            throw new BusinessException(PARAMETER_ERROR, "参数不合法！");
+        }
+
+        return itemStockLogMapper.selectByPrimaryKey(id);
     }
 
 }

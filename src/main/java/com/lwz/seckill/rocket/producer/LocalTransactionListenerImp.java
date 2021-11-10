@@ -31,6 +31,12 @@ public class LocalTransactionListenerImp implements RocketMQLocalTransactionList
     @Autowired
     private ItemService itemService;
 
+    /**
+     * 执行本地事务
+     * @param msg
+     * @param arg
+     * @return
+     */
     @Override
     public RocketMQLocalTransactionState executeLocalTransaction(Message msg, Object arg) {
         try {
@@ -46,6 +52,11 @@ public class LocalTransactionListenerImp implements RocketMQLocalTransactionList
         }
     }
 
+    /**
+     * 检查本地事务
+     * @param msg
+     * @return
+     */
     @Override
     public RocketMQLocalTransactionState checkLocalTransaction(Message msg) {
         try {

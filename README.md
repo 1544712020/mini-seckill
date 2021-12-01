@@ -15,5 +15,8 @@ mini-seckill项目是一个商品秒杀的单体应用，项目使用了SpringBo
 
 3.第三版：加入RocketMQ对扣减库存和下单进行异步解耦
 
+The picture on the road...
 
 4.第四版：加入TokenBucket对用户请求进行削峰限流
+
+The picture on the road...

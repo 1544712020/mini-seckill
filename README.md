@@ -1,10 +1,19 @@
 # mini-seckill
 
 #### 介绍
-单机秒杀项目
+mini-seckill项目是一个商品秒杀的单体应用，项目使用了SpringBoot、MyBatis、Redis、RocketMQ、Nginx、guava、fastjson、tokenbucket等框架、中间件、组件
 
 #### 软件架构
-软件架构说明
+1.第一版
+![输入图片说明](image.png)
+
+2.第二版：加入Redis、guava缓存
+![输入图片说明](src/image.png)
+
+3.第三版：加入RocketMQ对扣减库存和下单进行异步解耦
+
+
+4.第四版：加入TokenBucket对用户请求进行削峰限流
 
 
 #### 安装教程
